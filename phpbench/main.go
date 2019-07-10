@@ -51,10 +51,10 @@ func main() {
 		os.Exit(0)
 	}
 
-	benchFullpath := (fullpath[:len(fullpath)-4]) + ".bench.php"
+	benchFullpath := (fullpath[:len(fullpath)-4]) + ".phpbench.php"
 	_filepath = fullpath
 	_benchFilepath = benchFullpath
-	_tag = "<?php include('" + (_benchFilepath) + "'); ?>"
+	_tag = "<?php return include('" + (_benchFilepath) + "'); ?>"
 
 	fmt.Println("File: " + fullpath)
 
