@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -299,8 +300,18 @@ func startServer() {
 
 	r.GET("/", func(c *gin.Context) {
 
+		lines := []*codeLine{}
+
+		for _, val := range codeLines {
+			lines = append(lines, val)
+		}
+
+		sort.Slice(lines[:], func(i, j int) bool {
+			return lines[i].AverageMs > lines[j].AverageMs
+		})
+
 		c.HTML(http.StatusOK, "overview.html", gin.H{
-			"Lines": codeLines,
+			"Lines": lines,
 		})
 
 	})
