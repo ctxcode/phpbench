@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -59,7 +60,13 @@ func main() {
 	_benchFilepath = (fullpath[:len(fullpath)-4]) + ".phpbench.php"
 	_originalFilepath = (fullpath[:len(fullpath)-4]) + ".original.php"
 	_filepath = fullpath
-	_tag = "<?php return include('" + (_benchFilepath) + "'); ?>"
+	_tag = "return include('" + (_benchFilepath) + "');"
+
+	injectCode, err := Asset("assets/inject.php")
+	if err != nil {
+		fmt.Println("Cant find inject code")
+		os.Exit(0)
+	}
 
 	fmt.Println("File: " + fullpath)
 
@@ -89,7 +96,7 @@ func main() {
 	ioutil.WriteFile(_originalFilepath, []byte(code), 0644)
 
 	// Insert tag
-	newCode := _tag
+	newCode := string(injectCode) + "\n" + _tag
 	ioutil.WriteFile(_filepath, []byte(newCode), 0644)
 
 	//
@@ -135,13 +142,7 @@ func updateNewCode() {
 		os.Exit(0)
 	}
 
-	injectCode, err := Asset("assets/inject.php")
-	if err != nil {
-		fmt.Println("Cant find inject code")
-		os.Exit(0)
-	}
-
-	newCode := string(injectCode) + addBenchFunctions(originalCode)
+	newCode := addBenchFunctions(originalCode)
 
 	ioutil.WriteFile(_benchFilepath, []byte(newCode), 0644)
 }
@@ -175,6 +176,7 @@ func addBenchFunctions(code string) string {
 	tokens := []string{}
 	allowNewCode := true
 	allowNewCodeAfterNextBracket := false
+	allowNewCodeAfterNextSemiColon := false
 	lastCodeLine := ""
 
 	for _, char := range code {
@@ -195,6 +197,16 @@ func addBenchFunctions(code string) string {
 			lastWord += c
 		} else {
 
+			if lastWord == "php" {
+				newCode += lastCodeLine
+				lastCodeLine = ""
+			}
+
+			if lastWord == "namespace" {
+				allowNewCode = false
+				allowNewCodeAfterNextSemiColon = true
+			}
+
 			if lastWord == "class" || lastWord == "function" || lastWord == "if" || lastWord == "else" || lastWord == "elseif" || lastWord == "for" {
 				lastToken = lastWord
 				allowNewCode = false
@@ -206,6 +218,7 @@ func addBenchFunctions(code string) string {
 			if c == "{" {
 				tokens = append(tokens, lastToken)
 				if allowNewCodeAfterNextBracket {
+					allowNewCodeAfterNextBracket = false
 					allowNewCode = true
 				}
 				newCode += lastCodeLine
@@ -237,11 +250,15 @@ func addBenchFunctions(code string) string {
 				}
 				newCode += lastCodeLine + "\n"
 				if allowNewCode {
-					escCodeLine := strings.Replace(lastCodeLine, "'", "", 0)
+					escCodeLine := strings.Replace(lastCodeLine, "'", "", -1)
 					re := regexp.MustCompile(`\r?\n`)
 					escCodeLine = re.ReplaceAllString(escCodeLine, " ")
 					escCodeLine = strings.TrimSpace(escCodeLine)
 					newCode += "\\PhpBench::timeCode(" + (strconv.Itoa(timerCount)) + ", trim('" + escCodeLine + "'));\n"
+				}
+				if allowNewCodeAfterNextSemiColon {
+					allowNewCodeAfterNextSemiColon = false
+					allowNewCode = true
 				}
 				lastCodeLine = ""
 			}
@@ -261,7 +278,9 @@ func addBenchFunctions(code string) string {
 func startServer() {
 
 	r := gin.Default()
-	r.LoadHTMLGlob("templates/*")
+
+	t, _ := loadTemplate()
+	r.SetHTMLTemplate(t)
 
 	r.POST("/data", func(c *gin.Context) {
 
@@ -310,7 +329,7 @@ func startServer() {
 			return lines[i].AverageMs > lines[j].AverageMs
 		})
 
-		c.HTML(http.StatusOK, "overview.html", gin.H{
+		c.HTML(http.StatusOK, "templates/overview.html", gin.H{
 			"Lines": lines,
 		})
 
@@ -318,4 +337,16 @@ func startServer() {
 
 	r.Run(":3001")
 
+}
+
+func loadTemplate() (*template.Template, error) {
+	t := template.New("")
+	for _, name := range AssetNames() {
+		if !strings.HasSuffix(name, ".html") {
+			continue
+		}
+		html, _ := Asset(name)
+		t, _ = t.New(name).Parse(string(html))
+	}
+	return t, nil
 }
