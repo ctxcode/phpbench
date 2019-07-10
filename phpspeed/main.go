@@ -105,6 +105,7 @@ func placeBackOriginal() {
 	}
 
 	ioutil.WriteFile(_filepath, []byte(originalCode), 0644)
+	os.Remove(_benchFilepath)
 }
 
 func updateNewCode() {
