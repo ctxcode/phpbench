@@ -1,2 +1,2 @@
-go-bindata -o phpspeed/assets.go assets/
-go install ./phpspeed
+go-bindata -o phpbench/assets.go assets/
+go install ./phpbench

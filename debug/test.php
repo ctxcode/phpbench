@@ -2,7 +2,7 @@
 
 function test() {
 
-    sleep(1);
+    sleep(2);
 
     echo "done";
 }
