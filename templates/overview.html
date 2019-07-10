@@ -1,0 +1,20 @@
+
+<table>
+    <thead>
+        <tr>
+            <th>Code</th>
+            <th>Last Ms</th>
+            <th>Average Ms</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range $line := .lines}}
+        <tr>
+            <td>{{ $line.code }}</td>
+            <td></td>
+            <td></td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+Message {{ .msg }}
