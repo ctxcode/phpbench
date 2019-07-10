@@ -121,7 +121,7 @@ func updateNewCode() {
 		os.Exit(0)
 	}
 
-	newCode := string(injectCode) + originalCode
+	newCode := string(injectCode) + addBenchFunctions(originalCode)
 
 	ioutil.WriteFile(_benchFilepath, []byte(newCode), 0644)
 }
@@ -142,6 +142,19 @@ func getOriginalCode() {
 
 	originalCode = string(code)
 	originalCode = strings.Replace(originalCode, _tag, "", 1)
+}
+
+func addBenchFunctions(code string) string {
+
+	split := strings.Split(code, "\n")
+	newCode := []string{}
+
+	for _, line := range split {
+
+		newCode = append(newCode, line)
+	}
+
+	return strings.Join(newCode, "\n")
 }
 
 func startServer() {
@@ -185,6 +198,6 @@ func startServer() {
 
 	})
 
-	r.Run(":3001") // listen and serve on 0.0.0.0:8080
+	r.Run(":3001")
 
 }
