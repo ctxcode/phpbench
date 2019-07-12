@@ -1,7 +1,7 @@
 
 # PhpBench (WIP)
 
-`phpbench` is a tool to see how much milliseconds each line of code takes within a certain file.
+`phpbench` is a tool to see how many milliseconds each line of code takes within a certain file.
 
 ## Install
 
