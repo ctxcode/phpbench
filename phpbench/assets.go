@@ -63,7 +63,7 @@ func (fi bindataFileInfo) Mode() os.FileMode {
 	return fi.mode
 }
 
-// Mode return file modify time
+// ModTime return file modify time
 func (fi bindataFileInfo) ModTime() time.Time {
 	return fi.modTime
 }
@@ -93,7 +93,7 @@ func assetsInjectPhp() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "assets/inject.php", size: 1015, mode: os.FileMode(511), modTime: time.Unix(1562787405, 0)}
+	info := bindataFileInfo{name: "assets/inject.php", size: 1015, mode: os.FileMode(511), modTime: time.Unix(1563177707, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -113,7 +113,7 @@ func templatesOverviewHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "templates/overview.html", size: 1577, mode: os.FileMode(511), modTime: time.Unix(1562784132, 0)}
+	info := bindataFileInfo{name: "templates/overview.html", size: 1577, mode: os.FileMode(511), modTime: time.Unix(1563177707, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }

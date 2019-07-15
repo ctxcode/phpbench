@@ -36,6 +36,7 @@ var _filepath = ""
 var _originalFilepath = ""
 var _benchFilepath = ""
 var _tag = ""
+var _version = "0.1.2"
 
 func main() {
 
@@ -45,6 +46,11 @@ func main() {
 		os.Exit(0)
 	}
 	fn := os.Args[1]
+
+	if fn == "version" {
+		fmt.Println("Version " + _version)
+		os.Exit(0)
+	}
 
 	if !strings.HasSuffix(fn, ".php") {
 		fmt.Println("File must be a .php file")
@@ -178,19 +184,38 @@ func addBenchFunctions(code string) string {
 	allowNewCodeAfterNextBracket := false
 	allowNewCodeAfterNextSemiColon := false
 	lastCodeLine := ""
+	inCommentSingleLine := false
+	inCommentMultiLine := false
 
 	for _, char := range code {
 
 		c := string(char)
+
 		lastCodeLine += c
 
 		if inString {
 			if c == stringEndChar && prevChar != "\\" {
 				inString = false
 				stringEndChar = ""
-				prevChar = c
-				continue
 			}
+			prevChar = c
+			continue
+		}
+
+		if inCommentMultiLine {
+			if c == "/" && prevChar == "*" {
+				inCommentMultiLine = false
+			}
+			prevChar = c
+			continue
+		}
+
+		if inCommentSingleLine {
+			if c == "\n" {
+				inCommentSingleLine = false
+			}
+			prevChar = c
+			continue
 		}
 
 		if unicode.IsLetter(char) {
@@ -213,6 +238,14 @@ func addBenchFunctions(code string) string {
 				if lastWord != "class" {
 					allowNewCodeAfterNextBracket = true
 				}
+			}
+
+			if c == "*" && prevChar == "/" {
+				inCommentMultiLine = true
+			}
+
+			if c == "/" && prevChar == "/" {
+				inCommentSingleLine = true
 			}
 
 			if c == "{" {
