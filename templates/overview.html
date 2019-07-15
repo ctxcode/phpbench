@@ -5,89 +5,142 @@
         font-family: 'Open Sans';
     }
 
-    table {
-        border-spacing: 1;
-        border-collapse: collapse;
-        background: white;
-        border-radius: 4px;
-        overflow: hidden;
-        width: 100%;
-        margin: 0 auto;
-        position: relative;
-        max-width: 700px;
+    .sidebar{
+        position: absolute;
+        z-index:3;
+        top:0;
+        left:0;
+        bottom:0;
+        width:300px;
+        background-color:#eee;
+        box-shadow: 0px 0px 15px rgba(0,0,0,0.1);
     }
 
-    table * {
-        position: relative;
+    .sidebar.second{
+        z-index:2;
+        left:300px;
     }
 
-    table td,
-    table th {
-        padding: 5px 10px;
+    .sidebar .header{
+        background-color:#1c1c75;
+        padding:20px 15px;
+        color:#fff;
+        font-size:16px;
+        font-weight: bold;
+        border-right:1px solid #6969a0;
     }
 
-    table thead tr {
-        height: 60px;
-        background: #36304a;
-        color: #fff;
-    }
-
-    table tbody tr {
-        height: 50px;
-    }
-
-    table tbody tr.total{
-        height: 60px;
-        background: #36304a;
-        color: #fff;
-    }
-
-    table td,
-    table th {
-        text-align: left;
-    }
-
-    tbody tr:nth-child(even) {
-        background-color: #f5f5f5;
-    }
-
-    tbody tr {
-        font-size: 15px;
-        color: #808080;
-        line-height: 1.2;
-        font-weight: unset;
-    }
-
-    tbody tr:hover {
-        color: #555555;
-        background-color: #f5f5f5;
+    .sidebar .item{
+        padding:15px 15px;
+        border-bottom:1px solid #ccc;
         cursor: pointer;
     }
 
-    table td.c, table th.c {
+    .content{
+        position: absolute;
+        z-index:1;
+        top:0;
+        left:600px;
+        right:0;
+    }
+
+    .tbl{
+        border: none;
+        width:100%;
+    }
+
+    .tbl thead th{
+        padding:20px 10px;
+        background-color:#7979a0;
+        border-right:1px solid #9a9ac3;
+        color:#fff;
+    }
+
+    .tbl tbody td{
+        padding:10px 15px;
+        border-right:1px solid #ddd;
+        color:#888;
+    }
+
+    .tbl tbody td.c{
         text-align: center;
     }
+
+    .tbl tbody tr:nth-child(odd){
+        background-color: #eee;
+    }
+
 </style>
 
-<table>
-    <thead>
-        <tr>
-            <th>Code</th>
-            <th class="c">Last Ms</th>
-            <th class="c">Average Ms</th>
-        </tr>
-    </thead>
-    <tbody>
-        {{range .Lines}}
-        <tr>
-            <td>{{ .Code }}</td>
-            <td class="c">{{ .LastMsDisplay }}</td>
-            <td class="c">{{ .AverageMsDisplay }}</td>
-        </tr>
-        {{end}}
-        <tr class="total">
-            <td colspan="3" class="c">Total: {{ .Total }}ms</td>
-        </tr>
-    </tbody>
-</table>
+<div id="app">
+    <div class="sidebar">
+        <div class="header">Tests</div>
+        <div class="item" v-for="set,key in resultSets" v-on:click="setSetKey(key)">[[ key ]]</div>
+    </div>
+
+    <div class="sidebar second">
+        <div class="header">Files</div>
+    </div>
+
+    <div class="content">
+        <table class="tbl" cellspacing="0">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>ms</th>
+                    <th>Times called</th>
+                    <th>Average ms</th>
+                </tr>
+            </thead>
+            <tbody>
+            <template v-if="currentSet">
+                <tr v-for="cline in currentSet.CodeLines">
+                    <td>[[ cline.Code ]]</td>
+                    <td>[[ cline.MsDisplay ]]ms</td>
+                    <td>0</td>
+                    <td>[[ cline.AverageMsDisplay ]]ms</td>
+                </tr>
+            </template>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+
+<script>
+    var resultSets = JSON.parse({{ .ResultSetsJson }});
+    // var resultSets = {"1563194034883":{"CodeLines":{"1":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"sleep(2);","LineNr":"4","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0},"2":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"echo \"done\";","LineNr":"6","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0},"3":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"test();","LineNr":"9","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0}},"CodeLinesSorted":null,"TotalMs":0},"1563194104448":{"CodeLines":{"1":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"sleep(2);","LineNr":"4","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0},"2":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"echo \"done\";","LineNr":"6","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0},"3":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"test();","LineNr":"9","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0}},"CodeLinesSorted":null,"TotalMs":0}};
+
+        var app = new Vue({
+            delimiters: ['[[', ']]'],
+            el: '#app',
+            data: {
+                resultSets: resultSets,
+                currentSet: null,
+                filenames: [],
+                filenamesIgnored: [],
+            },
+            methods: {
+                setSetKey: function(key){
+                    this.currentSet = this.resultSets[key];
+                    this.filenames = [];
+                    for(var k in this.currentSet.CodeLines){
+                        var cl = this.currentSet.CodeLines[k];
+                        if(this.filenames.indexOf(cl.filename) == -1){
+                            this.filenames.push(cl.filename);
+                        }
+                    }
+                }
+            },
+            created: function(){
+                var keys = Object.keys(this.resultSets);
+                if(keys[0]){
+                    this.setSetKey(keys[0]);
+                }
+            }
+        });
+
+</script>
 
