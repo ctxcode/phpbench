@@ -14,7 +14,7 @@ class PhpBench {
         $timeSpent = $end-static::$timers['t' . $timer];
         unset(static::$timers['t' . $timer]);
 
-        $ms = round($timeSpent * 1000);
+        $ms = round($timeSpent * 1000 * 1000);
 
         // echo $ms . 'ms';
 

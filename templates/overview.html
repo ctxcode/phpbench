@@ -9,7 +9,7 @@
         border-spacing: 1;
         border-collapse: collapse;
         background: white;
-        border-radius: 10px;
+        border-radius: 4px;
         overflow: hidden;
         width: 100%;
         margin: 0 auto;
@@ -23,7 +23,7 @@
 
     table td,
     table th {
-        padding-left: 8px;
+        padding: 5px 10px;
     }
 
     table thead tr {
@@ -36,8 +36,10 @@
         height: 50px;
     }
 
-    table tbody tr:last-child {
-        border: 0;
+    table tbody tr.total{
+        height: 60px;
+        background: #36304a;
+        color: #fff;
     }
 
     table td,
@@ -79,9 +81,13 @@
         {{range .Lines}}
         <tr>
             <td>{{ .Code }}</td>
-            <td class="c">{{ .LastMs }}</td>
-            <td class="c">{{ .AverageMs }}</td>
+            <td class="c">{{ .LastMsDisplay }}</td>
+            <td class="c">{{ .AverageMsDisplay }}</td>
         </tr>
         {{end}}
+        <tr class="total">
+            <td colspan="3" class="c">Total: {{ .Total }}</td>
+        </tr>
     </tbody>
 </table>
+

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -23,11 +24,14 @@ type entry struct {
 }
 
 type codeLine struct {
-	Code      string
-	Entries   []entry
-	AverageMs int
-	TotalMs   int
-	LastMs    int
+	Code             string
+	Entries          []entry
+	AverageMs        int
+	AverageMsDisplay float64
+	TotalMs          int
+	TotalMsDisplay   float64
+	LastMs           int
+	LastMsDisplay    float64
 }
 
 var codeLines = map[string]*codeLine{}
@@ -340,8 +344,11 @@ func startServer() {
 		averageMs := totalMs / count
 
 		codeLines[code].LastMs = msInt
+		codeLines[code].LastMsDisplay = msDisplay(msInt)
 		codeLines[code].TotalMs = totalMs
+		codeLines[code].TotalMsDisplay = msDisplay(totalMs)
 		codeLines[code].AverageMs = averageMs
+		codeLines[code].AverageMsDisplay = msDisplay(averageMs)
 
 		codeLines[code].Entries = append(codeLines[code].Entries, entry{Ms: msInt})
 
@@ -353,9 +360,10 @@ func startServer() {
 	r.GET("/", func(c *gin.Context) {
 
 		lines := []*codeLine{}
-
+		total := 0
 		for _, val := range codeLines {
 			lines = append(lines, val)
+			total += val.LastMs
 		}
 
 		sort.Slice(lines[:], func(i, j int) bool {
@@ -364,12 +372,20 @@ func startServer() {
 
 		c.HTML(http.StatusOK, "templates/overview.html", gin.H{
 			"Lines": lines,
+			"Total": msDisplay(total),
 		})
 
 	})
 
 	r.Run(":3001")
 
+}
+
+func msDisplay(nr int) float64 {
+
+	res := math.Round(float64(nr)/10) / 100
+
+	return res
 }
 
 func loadTemplate() (*template.Template, error) {
