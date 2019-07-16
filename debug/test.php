@@ -1,5 +1,13 @@
 <?php
 
+namespace rito;
+
+if (true) {
+    class Z {
+
+    }
+}
+
 function test() {
 
     sleep(2);
