@@ -93,7 +93,7 @@ func assetsInjectPhp() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "assets/inject.php", size: 1910, mode: os.FileMode(511), modTime: time.Unix(1563249143, 0)}
+	info := bindataFileInfo{name: "assets/inject.php", size: 1910, mode: os.FileMode(511), modTime: time.Unix(1563259934, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -113,7 +113,7 @@ func templatesOverviewHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "templates/overview.html", size: 7981, mode: os.FileMode(511), modTime: time.Unix(1563247125, 0)}
+	info := bindataFileInfo{name: "templates/overview.html", size: 7981, mode: os.FileMode(511), modTime: time.Unix(1563254624, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
