@@ -6,7 +6,7 @@
     }
 
     .sidebar{
-        position: absolute;
+        position: fixed;
         z-index:3;
         top:0;
         left:0;
@@ -16,24 +16,39 @@
         box-shadow: 0px 0px 15px rgba(0,0,0,0.1);
     }
 
-    .sidebar.second{
+    .sidebar.files{
         z-index:2;
         left:300px;
     }
 
     .sidebar .header{
-        background-color:#1c1c75;
+        background-color:#ef6060;
         padding:20px 15px;
         color:#fff;
         font-size:16px;
         font-weight: bold;
-        border-right:1px solid #6969a0;
+        /* border-right:1px solid #8ef1ff; */
     }
 
     .sidebar .item{
         padding:15px 15px;
         border-bottom:1px solid #ccc;
         cursor: pointer;
+    }
+
+    .sidebar.files .item{
+        word-break: break-all;
+    }
+
+    .sidebar .item.active{
+        background-color:#ffffff;
+        border-bottom:1px solid #888888;
+        /* color:#fff; */
+    }
+
+    .sidebar .item.ignore{
+        text-decoration: line-through;
+        color:#aaa;
     }
 
     .content{
@@ -47,12 +62,13 @@
     .tbl{
         border: none;
         width:100%;
+        margin-bottom:100px;
     }
 
     .tbl thead th{
         padding:20px 10px;
-        background-color:#7979a0;
-        border-right:1px solid #9a9ac3;
+        background-color:#29e0ab;
+        border-right:1px solid #2bbf94;
         color:#fff;
     }
 
@@ -70,16 +86,34 @@
         background-color: #eee;
     }
 
+    .total-box{
+        text-align: center;
+        font-size:16px;
+        text-transform: uppercase;
+        font-weight: bold;
+        position: fixed;
+        left:625px;
+        right:25px;
+        bottom: 25px;
+        padding:15px;
+        box-shadow: 0px 0px 15px rgba(0,0,0,0.2);
+        background-color: #fff;
+        /* border:2px solid #ddd; */
+        /* border-bottom:none; */
+        border-radius:8px;
+    }
 </style>
 
 <div id="app">
     <div class="sidebar">
         <div class="header">Tests</div>
-        <div class="item" v-for="set,key in resultSets" v-on:click="setSetKey(key)">[[ key ]]</div>
+        <div class="item" v-for="set,key in resultSets" :class="{ active: currentSetKey == key }" v-on:click="setSetKey(key)">[[ key ]]</div>
     </div>
 
-    <div class="sidebar second">
+    <div class="sidebar files">
         <div class="header">Files</div>
+        <div class="item" v-on:click="filenamesIgnored = [];" :class="{ active: filenamesIgnored.length == 0 }">All files</div>
+        <div class="item" v-for="file in filenames" :class="{ ignore: filenamesIgnored.indexOf(file) > -1 }" v-on:click="ignoreFile(file)">[[ file ]]</div>
     </div>
 
     <div class="content">
@@ -94,7 +128,7 @@
             </thead>
             <tbody>
             <template v-if="currentSet">
-                <tr v-for="cline in currentSet.CodeLines">
+                <tr v-for="cline in results">
                     <td>[[ cline.Code ]]</td>
                     <td>[[ cline.MsDisplay ]]ms</td>
                     <td>0</td>
@@ -104,6 +138,12 @@
             </tbody>
         </table>
     </div>
+
+
+    <div v-if="currentSet" class="total-box">
+        Total: [[ total ]]ms
+    </div>
+
 </div>
 
 
@@ -111,7 +151,7 @@
 
 <script>
     var resultSets = JSON.parse({{ .ResultSetsJson }});
-    // var resultSets = {"1563194034883":{"CodeLines":{"1":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"sleep(2);","LineNr":"4","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0},"2":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"echo \"done\";","LineNr":"6","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0},"3":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"test();","LineNr":"9","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0}},"CodeLinesSorted":null,"TotalMs":0},"1563194104448":{"CodeLines":{"1":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"sleep(2);","LineNr":"4","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0},"2":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"echo \"done\";","LineNr":"6","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0},"3":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"test();","LineNr":"9","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0}},"CodeLinesSorted":null,"TotalMs":0}};
+    // var resultSets = {"1563194034883":{"CodeLines":{"1":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"sleep(2);","LineNr":"4","Entries":null,"Ms":2,"MsDisplay":2,"AverageMsDisplay":0},"2":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"echo \"done\";","LineNr":"6","Entries":null,"Ms":4,"MsDisplay":4,"AverageMsDisplay":0},"3":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"test();","LineNr":"9","Entries":null,"Ms":1,"MsDisplay":1,"AverageMsDisplay":0}},"CodeLinesSorted":null,"TotalMs":0},"1563194104448":{"CodeLines":{"1":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"sleep(2);","LineNr":"4","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0},"2":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"echo \"done\";","LineNr":"6","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0},"3":{"Filename":"/mnt/c/www/phpbench/debug/test.phpbench.php","Code":"test();","LineNr":"9","Entries":null,"Ms":0,"MsDisplay":0,"AverageMsDisplay":0}},"CodeLinesSorted":null,"TotalMs":0}};
 
         var app = new Vue({
             delimiters: ['[[', ']]'],
@@ -119,19 +159,76 @@
             data: {
                 resultSets: resultSets,
                 currentSet: null,
+                currentSetKey: null,
                 filenames: [],
                 filenamesIgnored: [],
+            },
+            computed: {
+                results: function(){
+                    if(!this.currentSet){
+                        return [];
+                    }
+
+                    var result = [];
+                    var list = this.currentSet.CodeLines;
+
+                    for(var k in list){
+                        var i = list[k];
+
+                        var split = i.Filename.split('/');
+                        var fn = split[split.length - 1];
+                        fn = fn.replace('.phpbench.php', '.php');
+                        if(this.filenamesIgnored.indexOf(fn) > -1){
+                            continue;
+                        }
+
+                        result.push(i);
+                    }
+
+                    result.sort(this.sort);
+
+                    return result;
+                },
+                total: function(){
+                    var total = 0;
+                    for(var k in this.results){
+                        var i = this.results[k];
+                        total += i.MsDisplay;
+                    }
+                    return total;
+                }
             },
             methods: {
                 setSetKey: function(key){
                     this.currentSet = this.resultSets[key];
+                    this.currentSetKey = key;
                     this.filenames = [];
                     for(var k in this.currentSet.CodeLines){
                         var cl = this.currentSet.CodeLines[k];
-                        if(this.filenames.indexOf(cl.filename) == -1){
-                            this.filenames.push(cl.filename);
+                        var split = cl.Filename.split('/');
+                        var fn = split[split.length - 1];
+                        fn = fn.replace('.phpbench.php', '.php');
+                        if(this.filenames.indexOf(fn) == -1){
+                            this.filenames.push(fn);
                         }
                     }
+                },
+                ignoreFile: function(file){
+                    var index = this.filenamesIgnored.indexOf(file);
+                    if(index > -1){
+                        this.filenamesIgnored.splice(index, 1);
+                    }else{
+                        this.filenamesIgnored.push(file);
+                    }
+                },
+                sort: function(a, b){
+                    if ( a.Ms < b.Ms ){
+                      return 1;
+                    }
+                    if ( a.Ms > b.Ms ){
+                      return -1;
+                    }
+                    return 0;
                 }
             },
             created: function(){
