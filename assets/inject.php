@@ -2,6 +2,7 @@
 
 class PhpBench {
 
+    static $decreaseTime = null;
     static $setNr = null;
     static $timers = [];
 
@@ -12,7 +13,8 @@ class PhpBench {
     public static function timeCode($timer, $filename, $lineNr, $code) {
         $end = microtime(true);
 
-        $timeSpent = $end-static::$timers['t' . $timer];
+        $start = static::$timers['t' . $timer];
+        $timeSpent = $end - $start;
         unset(static::$timers['t' . $timer]);
 
         $ms = round($timeSpent * 1000 * 1000);
@@ -20,6 +22,12 @@ class PhpBench {
         if (!static::$setNr) {
             static::$setNr = floor(microtime(true) * 1000) . '';
         }
+
+        if (!static::$decreaseTime) {
+            static::$decreaseTime = floor($start / 10000) * 10000;
+        }
+        $start -= static::$decreaseTime;
+        $end -= static::$decreaseTime;
 
         // echo $ms . 'ms';
 
@@ -37,6 +45,8 @@ class PhpBench {
                 'lineNr' => $lineNr,
                 'code' => $code,
                 'ms' => $ms,
+                'start' => floor($start * 1000 * 100),
+                'end' => round($end * 1000 * 100),
             ],
         ]);
         // Send the request & save response to $resp

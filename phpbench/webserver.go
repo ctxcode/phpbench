@@ -27,6 +27,8 @@ type codeLine struct {
 	Code     string
 	LineNr   string
 	Entries  []entry
+	Start    int
+	End      int
 
 	Ms               int
 	MsDisplay        float64
@@ -55,14 +57,14 @@ func startWebServer() {
 		code := c.PostForm("code")
 		ms := c.PostForm("ms")
 
-		// println(code)
-		// println(key)
-		// fmt.Println(code)
-		// fmt.Println(ms)
+		start := c.PostForm("start")
+		end := c.PostForm("end")
 
 		lastResultSetKey = setNr
 
 		msInt, _ := strconv.Atoi(ms)
+		startInt, _ := strconv.Atoi(start)
+		endInt, _ := strconv.Atoi(end)
 
 		if _, ok := resultSets[setNr]; !ok {
 			resultSets[setNr] = &resultSet{
@@ -78,6 +80,8 @@ func startWebServer() {
 				Ms:               0,
 				MsDisplay:        0,
 				AverageMsDisplay: 0,
+				Start:            startInt,
+				End:              endInt,
 			}
 		}
 
@@ -88,6 +92,8 @@ func startWebServer() {
 		lineRef.Ms += msInt
 		lineRef.MsDisplay = msDisplay(lineRef.Ms)
 		lineRef.AverageMsDisplay = msDisplay(lineRef.Ms / count)
+
+		lineRef.End = endInt
 
 		lineRef.Entries = append(lineRef.Entries, entry{Ms: msInt})
 

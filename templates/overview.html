@@ -92,14 +92,13 @@
         text-transform: uppercase;
         font-weight: bold;
         position: fixed;
+        z-index:5;
         left:625px;
         right:25px;
         bottom: 25px;
         padding:15px;
         box-shadow: 0px 0px 15px rgba(0,0,0,0.2);
         background-color: #fff;
-        /* border:2px solid #ddd; */
-        /* border-bottom:none; */
         border-radius:8px;
     }
 </style>
@@ -107,7 +106,7 @@
 <div id="app">
     <div class="sidebar">
         <div class="header">Tests</div>
-        <div class="item" v-for="set,key in resultSets" :class="{ active: currentSetKey == key }" v-on:click="setSetKey(key)">[[ key ]]</div>
+        <div class="item" v-for="key in setKeys" :class="{ active: currentSetKey == key }" v-on:click="setSetKey(key)">[[ key ]]</div>
     </div>
 
     <div class="sidebar files">
@@ -157,6 +156,7 @@
             delimiters: ['[[', ']]'],
             el: '#app',
             data: {
+                setKeys: [],
                 resultSets: resultSets,
                 currentSet: null,
                 currentSetKey: null,
@@ -190,12 +190,20 @@
                     return result;
                 },
                 total: function(){
-                    var total = 0;
+                    var start = null;
+                    var end = 0;
                     for(var k in this.results){
                         var i = this.results[k];
-                        total += i.MsDisplay;
+
+                        if(start === null || i.Start < start){
+                            start = i.Start;
+                        }
+
+                        if(i.End > end){
+                            end = i.End;
+                        }
                     }
-                    return total;
+                    return (end-start) / 100;
                 }
             },
             methods: {
@@ -233,9 +241,12 @@
             },
             created: function(){
                 var keys = Object.keys(this.resultSets);
+                keys.sort();
+                keys.reverse();
                 if(keys[0]){
                     this.setSetKey(keys[0]);
                 }
+                this.setKeys = keys;
             }
         });
 
