@@ -12,9 +12,8 @@ import (
 
 var originalCode = ""
 var _filepath = ""
+var _benchDir = ""
 var _originalFilepath = ""
-var _benchFilepath = ""
-var _tag = ""
 var _version = "0.1.2"
 
 func main() {
@@ -36,29 +35,31 @@ func main() {
 		os.Exit(0)
 	}
 
+	///////////////////////////
+
 	fullpath, err := filepath.Abs(fn)
 	if err != nil {
 		fmt.Println("Cant generate absolute file path")
 		os.Exit(0)
 	}
 
-	_benchFilepath = (fullpath[:len(fullpath)-4]) + ".phpbench.php"
-	_originalFilepath = (fullpath[:len(fullpath)-4]) + ".original.php"
 	_filepath = fullpath
-	_tag = "return include('" + (_benchFilepath) + "');"
+	_benchDir = filepath.Dir(_filepath) + "/.phpbench"
+	_originalFilepath = (fullpath[:len(fullpath)-4]) + ".original.php"
 
-	injectCode, err := Asset("assets/inject.php")
-	if err != nil {
-		fmt.Println("Cant find inject code")
-		os.Exit(0)
-	}
+	os.Mkdir(_benchDir, 0644)
 
-	fmt.Println("File: " + fullpath)
+	classCode, _ := Asset("assets/PhpBench.php")
+	ioutil.WriteFile(_benchDir+"/class.php", []byte(classCode), 0644)
+
+	// fmt.Println("File: " + fullpath)
 
 	if _, err := os.Stat(fullpath); os.IsNotExist(err) {
 		fmt.Println("File not found")
 		os.Exit(0)
 	}
+
+	///////////////////////////
 
 	// Catch CTRL+C
 	c := make(chan os.Signal, 1)
@@ -80,12 +81,15 @@ func main() {
 	originalCode = string(code)
 	ioutil.WriteFile(_originalFilepath, []byte(code), 0644)
 
-	// Insert tag
-	newCode := string(injectCode) + "\n" + _tag
+	// Set new code
+	newCode := "<?php\n\n" +
+		// "return include('" + (_benchDir) + "/class.php');\n" +
+		"include('/mnt/c/www/phpbench/assets/PhpBench.php');\n" +
+		"return phpbench_include('" + (_originalFilepath) + "');\n"
 	ioutil.WriteFile(_filepath, []byte(newCode), 0644)
 
 	//
-	updateNewCode()
+	// updateNewCode()
 
 	// Interval
 	ticker := time.NewTicker(1 * time.Second)
@@ -116,21 +120,21 @@ func placeBackOriginal() {
 	}
 
 	ioutil.WriteFile(_filepath, []byte(originalCode), 0644)
-	os.Remove(_benchFilepath)
 	os.Remove(_originalFilepath)
+	os.RemoveAll(_benchDir)
 }
 
-func updateNewCode() {
+// func updateNewCode() {
 
-	if !strings.Contains(originalCode, "<?php") {
-		fmt.Println("Cant find <?php tag in code")
-		os.Exit(0)
-	}
+// 	if !strings.Contains(originalCode, "<?php") {
+// 		fmt.Println("Cant find <?php tag in code")
+// 		os.Exit(0)
+// 	}
 
-	newCode := addBenchFunctions(originalCode)
+// 	newCode := addBenchFunctions(originalCode)
 
-	ioutil.WriteFile(_benchFilepath, []byte(newCode), 0644)
-}
+// 	ioutil.WriteFile(_benchFilepath, []byte(newCode), 0644)
+// }
 
 func getOriginalCode() {
 
@@ -145,6 +149,6 @@ func getOriginalCode() {
 
 	if newCode != originalCode {
 		originalCode = newCode
-		updateNewCode()
+		// updateNewCode()
 	}
 }
