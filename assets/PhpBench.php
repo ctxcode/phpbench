@@ -60,41 +60,48 @@ class PhpBench {
 
 }
 
+function phpbench_error($e, $code) {
+
+    echo '<style>body,html{padding:0;margin:0;} pre span { display: block; } pre.phpbench-code span:before { counter-increment: line; content: counter(line); display: inline-block; min-width: 30px; margin-right: 5px; }</style>';
+    echo '<div style="padding:15px;">';
+    echo '<pre style="padding:10px 15px;  margin:0 0 10px 0; background-color:black; color:red;">phpbench seems to have problems understanding certain syntax, create an issue on our github, sorry 😥</pre>';
+
+    echo '<pre style="margin:0 0 15px 0; padding: 10px; background-color:#eee;">';
+    echo 'Error: ' . $e->getMessage() . "\n";
+    echo 'File: ' . $e->getFile() . "\n";
+    echo 'Line: ' . $e->getLine() . "\n";
+    echo "\n";
+    echo $e->getTraceAsString();
+    echo '</pre>';
+
+    echo '<pre style="padding:10px 15px; margin:0 0 10px 0; background-color:black; color:white;">The generated code</pre>';
+
+    echo '<pre style="margin:0 0 15px 0; padding: 10px; background-color:#eee; counter-reset: line;" class="phpbench-code">';
+    $lines = explode("\n", trim($code));
+    foreach ($lines as $line) {echo '<span>' . $line . '</span>';}
+    // echo trim($code);
+    echo '</pre>';
+    echo '</div>';
+
+    exit;
+}
+
 function phpbench_include($path) {
     if (!file_exists($path)) {
         throw \Exception('Trying to include file that doesnt exists: ' . $path);
     }
+
     $code = phpBenchGetCode($path);
+    $newPath = substr($path, 0, -4) . '.phpbench.php';
+    file_put_contents($newPath, $code);
 
-    try {
-        $result = eval('?>' . $code);
-    } catch (ParseError | Throwable $e) {
-        // Report error somehow
-        // $result = include $path;
+    return $newPath;
 
-        echo '<style>body,html{padding:0;margin:0;} pre span { display: block; } pre.phpbench-code span:before { counter-increment: line; content: counter(line); display: inline-block; min-width: 30px; margin-right: 5px; }</style>';
-        echo '<div style="padding:15px;">';
-        echo '<pre style="padding:10px 15px;  margin:0 0 10px 0; background-color:black; color:red;">phpbench seems to have problems understanding certain syntax, create an issue on our github, sorry 😥</pre>';
-
-        echo '<pre style="margin:0 0 15px 0; padding: 10px; background-color:#eee;">';
-        echo 'Error: ' . $e->getMessage() . "\n";
-        echo 'File: ' . $e->getFile() . "\n";
-        echo 'Line: ' . $e->getLine() . "\n";
-        echo "\n";
-        echo $e->getTraceAsString();
-        echo '</pre>';
-
-        echo '<pre style="padding:10px 15px; margin:0 0 10px 0; background-color:black; color:white;">The generated code</pre>';
-
-        echo '<pre style="margin:0 0 15px 0; padding: 10px; background-color:#eee; counter-reset: line;" class="phpbench-code">';
-        $lines = explode("\n", trim($code));
-        foreach ($lines as $line) {echo '<span>' . $line . '</span>';}
-        // echo trim($code);
-        echo '</pre>';
-        echo '</div>';
-
-        exit;
-    }
+    // try {
+    // $result = eval($code);
+    // } catch (ParseError | Throwable $e) {
+    //     phpbench_error($e);
+    // }
     return $result;
 }
 
@@ -224,7 +231,7 @@ function phpBenchGetCode($path) {
     $newCode = preg_replace('/([^a-zA-Z0-9_])__FILE__([^a-zA-Z0-9_])/', '$1PHPBENCH__FILE__' . $count . '$2', $newCode);
     $newCode = preg_replace('/([^a-zA-Z0-9_])__DIR__([^a-zA-Z0-9_])/', '$1PHPBENCH__DIR__' . $count . '$2', $newCode);
 
-    $newCode = preg_replace('/([^a-zA-Z0-9_])(include|include_once|require|require_once)([^a-zA-Z0-9_][^;\n]+);/', '$1phpbench_include($3);', $newCode);
+    $newCode = preg_replace('/(\n *(?:return )?)(include|include_once|require|require_once)([^a-zA-Z0-9_][^;\n]+);/', '$1$2 phpbench_include($3);', $newCode);
 
     // echo '<pre>';
     // echo str_replace('<?php', '< ?php', $newCode);
