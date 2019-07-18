@@ -82,7 +82,7 @@ func main() {
 
 	// Set new code
 	newCode := "<?php\n\n" +
-		"return include('" + (_benchDir) + "/class.php');\n" +
+		"include('" + (_benchDir) + "/class.php');\n" +
 		// "include('/mnt/c/www/phpbench/assets/PhpBench.php');\n" +
 		"return include(phpbench_include('" + (_originalFilepath) + "'));\n"
 	ioutil.WriteFile(_filepath, []byte(newCode), 0644)

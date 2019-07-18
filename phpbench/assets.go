@@ -93,7 +93,7 @@ func assetsPhpbenchPhp() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "assets/PhpBench.php", size: 9689, mode: os.FileMode(511), modTime: time.Unix(1563450894, 0)}
+	info := bindataFileInfo{name: "assets/PhpBench.php", size: 9689, mode: os.FileMode(511), modTime: time.Unix(1563453348, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
@@ -113,7 +113,7 @@ func templatesOverviewHtml() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "templates/overview.html", size: 7981, mode: os.FileMode(511), modTime: time.Unix(1563441898, 0)}
+	info := bindataFileInfo{name: "templates/overview.html", size: 7981, mode: os.FileMode(511), modTime: time.Unix(1563453345, 0)}
 	a := &asset{bytes: bytes, info: info}
 	return a, nil
 }
