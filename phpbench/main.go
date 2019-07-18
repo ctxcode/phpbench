@@ -67,7 +67,6 @@ func main() {
 	go func() {
 		<-c
 		placeBackOriginal()
-		os.Exit(0)
 	}()
 
 	// Copy original code
@@ -83,13 +82,10 @@ func main() {
 
 	// Set new code
 	newCode := "<?php\n\n" +
-		// "return include('" + (_benchDir) + "/class.php');\n" +
-		"include('/mnt/c/www/phpbench/assets/PhpBench.php');\n" +
-		"return phpbench_include('" + (_originalFilepath) + "');\n"
+		"return include('" + (_benchDir) + "/class.php');\n" +
+		// "include('/mnt/c/www/phpbench/assets/PhpBench.php');\n" +
+		"return include(phpbench_include('" + (_originalFilepath) + "'));\n"
 	ioutil.WriteFile(_filepath, []byte(newCode), 0644)
-
-	//
-	// updateNewCode()
 
 	// Interval
 	ticker := time.NewTicker(1 * time.Second)
@@ -120,21 +116,31 @@ func placeBackOriginal() {
 	}
 
 	ioutil.WriteFile(_filepath, []byte(originalCode), 0644)
+
+	//  Remove all .phpbench.php files
+	dir, _ := os.Getwd()
+	fmt.Println("Clean dir: " + dir)
+	err := filepath.Walk(dir, func(path string, f os.FileInfo, err error) error {
+		if err != nil {
+			println("Read file error...")
+			println(err)
+		}
+		if strings.HasSuffix(path, ".phpbench.php") {
+			os.Remove(path)
+		}
+		return nil
+	})
+
+	if err != nil {
+		println("Recursive file loop error")
+		println(err)
+	}
+
 	os.Remove(_originalFilepath)
 	os.RemoveAll(_benchDir)
+
+	os.Exit(0)
 }
-
-// func updateNewCode() {
-
-// 	if !strings.Contains(originalCode, "<?php") {
-// 		fmt.Println("Cant find <?php tag in code")
-// 		os.Exit(0)
-// 	}
-
-// 	newCode := addBenchFunctions(originalCode)
-
-// 	ioutil.WriteFile(_benchFilepath, []byte(newCode), 0644)
-// }
 
 func getOriginalCode() {
 

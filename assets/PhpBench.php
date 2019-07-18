@@ -6,7 +6,8 @@ class PhpBench {
     static $setNr = null;
     static $timers = [];
 
-    static $constCounter = 0;
+    static $timerCount = 0;
+    static $constCount = 0;
 
     public static function startTimer($timer) {
         static::$timers['t' . $timer] = microtime(true);
@@ -33,29 +34,63 @@ class PhpBench {
 
         // echo $ms . 'ms';
 
+        $url = 'http://127.0.0.1:3001/data';
+        $data = [
+            'filename' => $filename,
+            'setNr' => static::$setNr,
+            'key' => $timer,
+            'lineNr' => $lineNr,
+            'code' => $code,
+            'ms' => $ms,
+            'start' => floor($start * 1000 * 100),
+            'end' => round($end * 1000 * 100),
+        ];
+        static::postWithoutWait($url, $data);
+        return;
+
         // Get cURL resource
         $curl = curl_init();
         // Set some options - we are passing in a useragent too here
         curl_setopt_array($curl, [
             CURLOPT_RETURNTRANSFER => 1,
-            CURLOPT_URL => 'http://127.0.0.1:3001/data',
+            CURLOPT_URL => $url,
             CURLOPT_POST => 1,
-            CURLOPT_POSTFIELDS => [
-                'filename' => $filename,
-                'setNr' => static::$setNr,
-                'key' => $timer,
-                'lineNr' => $lineNr,
-                'code' => $code,
-                'ms' => $ms,
-                'start' => floor($start * 1000 * 100),
-                'end' => round($end * 1000 * 100),
-            ],
+            CURLOPT_POSTFIELDS => $data,
         ]);
         // Send the request & save response to $resp
         $resp = curl_exec($curl);
         // Close request to clear up some resources
         curl_close($curl);
 
+    }
+
+    private static function postWithoutWait($url, $params) {
+        foreach ($params as $key => &$val) {
+            if (is_array($val)) {
+                $val = implode(',', $val);
+            }
+
+            $post_params[] = $key . '=' . urlencode($val);
+        }
+        $post_string = implode('&', $post_params);
+
+        $parts = parse_url($url);
+
+        $fp = fsockopen($parts['host'],
+            isset($parts['port']) ? $parts['port'] : 80,
+            $errno, $errstr, 30);
+
+        $out = "POST " . $parts['path'] . " HTTP/1.1\r\n";
+        $out .= "Host: " . $parts['host'] . "\r\n";
+        $out .= "Content-Type: application/x-www-form-urlencoded\r\n";
+        $out .= "Content-Length: " . strlen($post_string) . "\r\n";
+        $out .= "Connection: Close\r\n\r\n";
+        if (isset($post_string)) {
+            $out .= $post_string;
+        }
+
+        fwrite($fp, $out);
+        fclose($fp);
     }
 
 }
@@ -87,11 +122,31 @@ function phpbench_error($e, $code) {
 }
 
 function phpbench_include($path) {
+
+    $fn = basename($path);
+    if ($fn == 'autoload.php') {
+        return $path;
+    }
+
     if (!file_exists($path)) {
         throw \Exception('Trying to include file that doesnt exists: ' . $path);
     }
 
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+
     $code = phpBenchGetCode($path);
+
+    // echo $path . '<br>';
+    // if ($fn == 'init.php') {
+    //     echo '<pre>';
+    //     echo str_replace('<?php', '< ?php', $code);
+    //     echo '</pre>';
+    //     echo 'z';
+    //     exit;
+    // }
+
     $newPath = substr($path, 0, -4) . '.phpbench.php';
     file_put_contents($newPath, $code);
 
@@ -113,8 +168,8 @@ function phpBenchGetCode($path) {
     $lastCodeLine = "";
     $addCode = false;
     $lineNr = 1;
-    $timerCount = 0;
     $lastTokenWasNewLine = false;
+    $firstPhpTag = true;
 
     $flushLastCodeLine = function () use (&$newCode, &$lastCodeLine) {
         $newCode .= $lastCodeLine;
@@ -124,30 +179,55 @@ function phpBenchGetCode($path) {
     $tokens = token_get_all($code, TOKEN_PARSE);
     $count = count($tokens);
 
-    $skipUntilScope = function (&$i) use (&$lastCodeLine, &$tokens, &$count) {
-        $semicols = 0;
-        $stop = false;
+    $skipUntilScope = function (&$i) use (&$lastCodeLine, &$tokens, &$count, &$lineNr) {
+        $bracks = 0;
         while ($i < $count) {
             $token = $tokens[$i];
 
+            if ($token == "\n") {
+                $lineNr++;
+            }
+
             if ($token == '(') {
-                $semicols++;
+                $bracks++;
             }
             if ($token == ')') {
-                $semicols--;
+                $bracks--;
             }
-            if ($semicols === 0 && ($token == '{' || $token == ";")) {
-                $stop = true;
+            if ($bracks === 0 && ($token == '{' || $token == ";")) {
+                $i--;
+                break;
             }
 
             $lastCodeLine .= is_array($token) ? $token[1] : $token;
 
             $i++;
+        }
+    };
 
-            if ($stop) {
+    $skipUntilSemi = function (&$i) use (&$lastCodeLine, &$tokens, &$count, &$lineNr) {
+        $bracks = 0;
+        while ($i < $count) {
+            $token = $tokens[$i];
+
+            if ($token == "\n") {
+                $lineNr++;
+            }
+
+            if ($token == '(' || $token == '{') {
+                $bracks++;
+            }
+            if ($token == ')' || $token == '}') {
+                $bracks--;
+            }
+            if ($bracks === 0 && ($token == ";")) {
                 $i--;
                 break;
             }
+
+            $lastCodeLine .= is_array($token) ? $token[1] : $token;
+
+            $i++;
         }
     };
 
@@ -155,14 +235,17 @@ function phpBenchGetCode($path) {
 
         $token = $tokens[$i];
 
-        if ($i > 0) {
+        if ($i > 1) {
             $lastTokenWasNewLine = false;
-            $prevToken = $tokens[$i];
+            $prevToken = $tokens[$i - 1];
             if (is_array($prevToken)) {
                 $prevTokenName = token_name($prevToken[0]);
                 if ($prevTokenName == 'T_WHITESPACE') {
                     if (strpos($prevToken[1], "\n") !== false) {
-                        $lastTokenWasNewLine = true;
+                        $prev2Token = $tokens[$i - 2];
+                        if (in_array($prev2Token, [';', '{'], true)) {
+                            $lastTokenWasNewLine = true;
+                        }
                     }
                 }
             }
@@ -171,20 +254,23 @@ function phpBenchGetCode($path) {
         if (is_array($token)) {
             $name = token_name($token[0]);
 
-            if ($name == 'T_OPEN_TAG') {
-                $lastCodeLine .= '<?php';
-                continue;
+            if ($name == 'T_OPEN_TAG' && $firstPhpTag) {
+                // $lastCodeLine .= '<?php';
+                $firstPhpTag = false;
+                // continue;
             }
 
-            if (in_array($name, ['T_CLASS', 'T_FOR', 'T_FOREACH', 'T_WHILE', 'T_IF', 'T_ELSEIF', 'T_ELSE', 'T_FUNCTION', 'T_THROW', 'T_CATCH', 'T_CONST', 'T_PRIVATE', 'T_PUBLIC'], true)) {
+            if (in_array($name, ['T_CLASS', 'T_FOR', 'T_FOREACH', 'T_WHILE', 'T_IF', 'T_ELSEIF', 'T_ELSE', 'T_FUNCTION', 'T_THROW', 'T_CATCH'], true)) {
                 $skipUntilScope($i);
                 continue;
             }
 
-            if (in_array($name, ['T_VARIABLE', 'T_STRING'], true)) {
+            if (in_array($name, ['T_VARIABLE', 'T_STRING', 'T_ECHO'], true)) {
                 if (!$addCode && $lastTokenWasNewLine) {
                     $addCode = true;
                     $flushLastCodeLine();
+                    $skipUntilSemi($i);
+                    continue;
                 }
             }
 
@@ -201,14 +287,14 @@ function phpBenchGetCode($path) {
         if ($token == ';') {
             if ($addCode) {
 
-                $timerCount++;
-                $newCode .= "\\PhpBench::startTimer(" . ($timerCount) . ");\n";
+                \PhpBench::$timerCount++;
+                $newCode .= "\\PhpBench::startTimer(" . (\PhpBench::$timerCount) . ");\n";
                 $newCode .= $lastCodeLine . "\n";
 
                 $escCodeLine = str_replace("'", "", $lastCodeLine);
                 $escCodeLine = preg_replace('/\r?\n/', ' ', $escCodeLine);
                 $escCodeLine = trim($escCodeLine);
-                $newCode .= "\\PhpBench::timeCode(" . $timerCount . ", __FILE__, " . $lineNr . ", '" . $escCodeLine . "');\n";
+                $newCode .= "\\PhpBench::timeCode(" . \PhpBench::$timerCount . ", __FILE__, " . $lineNr . ", '" . $escCodeLine . "');\n";
 
                 $lastCodeLine = "";
                 $addCode = false;
@@ -223,7 +309,7 @@ function phpBenchGetCode($path) {
     $newCode .= $lastCodeLine;
 
     // Create and replace constants
-    $count = ++PhpBench::$constCounter;
+    $count = ++\PhpBench::$constCount;
 
     define('PHPBENCH__FILE__' . $count, $path);
     define('PHPBENCH__DIR__' . $count, dirname($path));
@@ -231,7 +317,7 @@ function phpBenchGetCode($path) {
     $newCode = preg_replace('/([^a-zA-Z0-9_])__FILE__([^a-zA-Z0-9_])/', '$1PHPBENCH__FILE__' . $count . '$2', $newCode);
     $newCode = preg_replace('/([^a-zA-Z0-9_])__DIR__([^a-zA-Z0-9_])/', '$1PHPBENCH__DIR__' . $count . '$2', $newCode);
 
-    $newCode = preg_replace('/(\n *(?:return )?)(include|include_once|require|require_once)([^a-zA-Z0-9_][^;\n]+);/', '$1$2 phpbench_include($3);', $newCode);
+    $newCode = preg_replace('/(\n *(?:return )?)(include|include_once|require|require_once)([^a-zA-Z0-9_][^;\n]+);/', '$1$2(phpbench_include($3));', $newCode);
 
     // echo '<pre>';
     // echo str_replace('<?php', '< ?php', $newCode);
