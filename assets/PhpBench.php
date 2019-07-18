@@ -317,7 +317,7 @@ function phpBenchGetCode($path) {
     $newCode = preg_replace('/([^a-zA-Z0-9_])__FILE__([^a-zA-Z0-9_])/', '$1PHPBENCH__FILE__' . $count . '$2', $newCode);
     $newCode = preg_replace('/([^a-zA-Z0-9_])__DIR__([^a-zA-Z0-9_])/', '$1PHPBENCH__DIR__' . $count . '$2', $newCode);
 
-    $newCode = preg_replace('/(\n *(?:return )?)(include|include_once|require|require_once)([^a-zA-Z0-9_][^;\n]+);/', '$1$2(phpbench_include($3));', $newCode);
+    $newCode = preg_replace('/((?:return |= ?|\n *)?)(?![^a-zA-Z0-9_])(include|include_once|require|require_once)([^a-zA-Z0-9_][^;\n]+);/', '$1$2(phpbench_include($3));', $newCode);
 
     // echo '<pre>';
     // echo str_replace('<?php', '< ?php', $newCode);
