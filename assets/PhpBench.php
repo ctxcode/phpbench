@@ -67,12 +67,12 @@ function phpbench_include($path) {
     $code = phpBenchGetCode($path);
 
     try {
-        $result = eval($code);
+        $result = eval('?>' . $code);
     } catch (ParseError | Throwable $e) {
         // Report error somehow
         // $result = include $path;
 
-        echo '<style>body,html{padding:0;margin:0;}</style>';
+        echo '<style>body,html{padding:0;margin:0;} pre span { display: block; } pre.phpbench-code span:before { counter-increment: line; content: counter(line); display: inline-block; min-width: 30px; margin-right: 5px; }</style>';
         echo '<div style="padding:15px;">';
         echo '<pre style="padding:10px 15px;  margin:0 0 10px 0; background-color:black; color:red;">phpbench seems to have problems understanding certain syntax, create an issue on our github, sorry 😥</pre>';
 
@@ -86,8 +86,10 @@ function phpbench_include($path) {
 
         echo '<pre style="padding:10px 15px; margin:0 0 10px 0; background-color:black; color:white;">The generated code</pre>';
 
-        echo '<pre style="margin:0 0 15px 0; padding: 10px; background-color:#eee;">';
-        echo trim($code);
+        echo '<pre style="margin:0 0 15px 0; padding: 10px; background-color:#eee; counter-reset: line;" class="phpbench-code">';
+        $lines = explode("\n", trim($code));
+        foreach ($lines as $line) {echo '<span>' . $line . '</span>';}
+        // echo trim($code);
         echo '</pre>';
         echo '</div>';
 
@@ -101,142 +103,115 @@ function phpBenchGetCode($path) {
     $code = file_get_contents($path);
 
     $newCode = "";
-    $lastWord = "";
-    $inString = false;
-    $stringEndChar = "";
-    $timerCount = 0;
-    $prevChar = "";
-    $lastToken = "";
-    $tokens = [];
-    $allowNewCode = true;
-    $allowNewCodeAfterNextBracket = false;
-    $allowNewCodeAfterNextSemiColon = false;
     $lastCodeLine = "";
-    $inCommentSingleLine = false;
-    $inCommentMultiLine = false;
-    $lineNr = 0;
-    $foundPhpTag = false;
+    $addCode = false;
+    $lineNr = 1;
+    $timerCount = 0;
+    $lastTokenWasNewLine = false;
 
-    $codeLength = strlen($code);
-    for ($i = 0; $i < $codeLength; $i++) {
+    $flushLastCodeLine = function () use (&$newCode, &$lastCodeLine) {
+        $newCode .= $lastCodeLine;
+        $lastCodeLine = "";
+    };
 
-        $c = $code[$i];
+    $tokens = token_get_all($code, TOKEN_PARSE);
+    $count = count($tokens);
 
-        if ($c == "\n") {
+    $skipUntilScope = function (&$i) use (&$lastCodeLine, &$tokens, &$count) {
+        $semicols = 0;
+        $stop = false;
+        while ($i < $count) {
+            $token = $tokens[$i];
+
+            if ($token == '(') {
+                $semicols++;
+            }
+            if ($token == ')') {
+                $semicols--;
+            }
+            if ($semicols === 0 && ($token == '{' || $token == ";")) {
+                $stop = true;
+            }
+
+            $lastCodeLine .= is_array($token) ? $token[1] : $token;
+
+            $i++;
+
+            if ($stop) {
+                $i--;
+                break;
+            }
+        }
+    };
+
+    for ($i = 0; $i < $count; $i++) {
+
+        $token = $tokens[$i];
+
+        if ($i > 0) {
+            $lastTokenWasNewLine = false;
+            $prevToken = $tokens[$i];
+            if (is_array($prevToken)) {
+                $prevTokenName = token_name($prevToken[0]);
+                if ($prevTokenName == 'T_WHITESPACE') {
+                    if (strpos($prevToken[1], "\n") !== false) {
+                        $lastTokenWasNewLine = true;
+                    }
+                }
+            }
+        }
+
+        if (is_array($token)) {
+            $name = token_name($token[0]);
+
+            if ($name == 'T_OPEN_TAG') {
+                $lastCodeLine .= '<?php';
+                continue;
+            }
+
+            if (in_array($name, ['T_CLASS', 'T_FOR', 'T_FOREACH', 'T_WHILE', 'T_IF', 'T_ELSEIF', 'T_ELSE', 'T_FUNCTION', 'T_THROW', 'T_CATCH', 'T_CONST', 'T_PRIVATE', 'T_PUBLIC'], true)) {
+                $skipUntilScope($i);
+                continue;
+            }
+
+            if (in_array($name, ['T_VARIABLE', 'T_STRING'], true)) {
+                if (!$addCode && $lastTokenWasNewLine) {
+                    $addCode = true;
+                    $flushLastCodeLine();
+                }
+            }
+
+            $lastCodeLine .= $token[1];
+            continue;
+        }
+
+        $lastCodeLine .= $token;
+
+        if ($token == "\n") {
             $lineNr++;
         }
 
-        $lastCodeLine .= $c;
+        if ($token == ';') {
+            if ($addCode) {
 
-        if ($inString) {
-            if ($c == $stringEndChar && $prevChar != "\\") {
-                $inString = false;
-                $stringEndChar = "";
-            }
-            $prevChar = $c;
-            continue;
-        }
-
-        if ($inCommentMultiLine) {
-            if ($c == "/" && $prevChar == "*") {
-                $inCommentMultiLine = false;
-            }
-            $prevChar = $c;
-            continue;
-        }
-
-        if ($inCommentSingleLine) {
-            if ($c == "\n") {
-                $inCommentSingleLine = false;
-            }
-            $prevChar = $c;
-            continue;
-        }
-
-        if (ctype_alnum($c)) {
-            $lastWord .= $c;
-        } else {
-
-            if ($lastWord == "php" && !$foundPhpTag) {
-                // $newCode .= $lastCodeLine;
-                $foundPhpTag = true;
-                $lastCodeLine = "";
-            }
-
-            if ($lastWord == "namespace") {
-                $allowNewCode = false;
-                $allowNewCodeAfterNextSemiColon = true;
-            }
-
-            if (in_array($lastWord, ['class', 'function', 'if', 'else', 'elseif', 'for', 'while'], true)) {
-                $lastToken = $lastWord;
-                $allowNewCode = false;
-                if ($lastWord != "class") {
-                    $allowNewCodeAfterNextBracket = true;
-                }
-            }
-
-            if ($c == "*" && $prevChar == "/") {
-                $inCommentMultiLine = true;
-            }
-
-            if ($c == "/" && $prevChar == "/") {
-                $inCommentSingleLine = true;
-            }
-
-            if ($c == "{") {
-                $tokens[] = $lastToken;
-                if ($allowNewCodeAfterNextBracket) {
-                    $allowNewCodeAfterNextBracket = false;
-                    $allowNewCode = true;
-                }
-                $newCode .= $lastCodeLine;
-                $lastCodeLine = "";
-            }
-
-            if ($c == "}") {
-                $allowNewCode = true;
-                array_pop($tokens);
-                if (count($tokens) > 0) {
-                    $token = $tokens[count($tokens) - 1];
-                    if ($token != "class") {
-                        $allowNewCode = false;
-                    }
-                }
-                $newCode .= $lastCodeLine;
-                $lastCodeLine = "";
-            }
-
-            if ($c == "'" || $c == "\"") {
-                $inString = true;
-                $stringEndChar = $c;
-            }
-
-            if ($c == ";") {
-                if ($allowNewCode) {
-                    $timerCount++;
-                    $newCode .= "\\PhpBench::startTimer(" . ($timerCount) . ");\n";
-                }
+                $timerCount++;
+                $newCode .= "\\PhpBench::startTimer(" . ($timerCount) . ");\n";
                 $newCode .= $lastCodeLine . "\n";
-                if ($allowNewCode) {
-                    $escCodeLine = str_replace("'", "", $lastCodeLine);
-                    $escCodeLine = preg_replace('/\r?\n/', ' ', $escCodeLine);
-                    $escCodeLine = trim($escCodeLine);
-                    $newCode .= "\\PhpBench::timeCode(" . $timerCount . ", __FILE__, " . $lineNr . ", '" . $escCodeLine . "');\n";
-                }
-                if ($allowNewCodeAfterNextSemiColon) {
-                    $allowNewCodeAfterNextSemiColon = false;
-                    $allowNewCode = true;
-                }
-                $lastCodeLine = "";
-            }
 
-            // Reset lastWord
-            $lastWord = "";
+                $escCodeLine = str_replace("'", "", $lastCodeLine);
+                $escCodeLine = preg_replace('/\r?\n/', ' ', $escCodeLine);
+                $escCodeLine = trim($escCodeLine);
+                $newCode .= "\\PhpBench::timeCode(" . $timerCount . ", __FILE__, " . $lineNr . ", '" . $escCodeLine . "');\n";
+
+                $lastCodeLine = "";
+                $addCode = false;
+                continue;
+            }
         }
 
-        $prevChar = $c;
     }
+
+    $flushLastCodeLine();
 
     $newCode .= $lastCodeLine;
 
@@ -248,6 +223,13 @@ function phpBenchGetCode($path) {
 
     $newCode = preg_replace('/([^a-zA-Z0-9_])__FILE__([^a-zA-Z0-9_])/', '$1PHPBENCH__FILE__' . $count . '$2', $newCode);
     $newCode = preg_replace('/([^a-zA-Z0-9_])__DIR__([^a-zA-Z0-9_])/', '$1PHPBENCH__DIR__' . $count . '$2', $newCode);
+
+    $newCode = preg_replace('/([^a-zA-Z0-9_])(include|include_once|require|require_once)([^a-zA-Z0-9_][^;\n]+);/', '$1phpbench_include($3);', $newCode);
+
+    // echo '<pre>';
+    // echo str_replace('<?php', '< ?php', $newCode);
+    // echo '</pre>';
+    // exit;
 
     return $newCode;
 }
