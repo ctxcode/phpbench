@@ -84,7 +84,10 @@ func main() {
 	newCode := "<?php\n\n" +
 		"include('" + (_benchDir) + "/class.php');\n" +
 		// "include('/mnt/c/www/phpbench/assets/PhpBench.php');\n" +
-		"return include(phpbench_include('" + (_originalFilepath) + "'));\n"
+		"register_shutdown_function('\\PhpBench::send');\n" +
+		"$_phpbench_result = include(phpbench_include('" + (_originalFilepath) + "'));\n" +
+		// "\\PhpBench::send();\n" +
+		"return $_phpbench_result;\n"
 	ioutil.WriteFile(_filepath, []byte(newCode), 0644)
 
 	// Interval

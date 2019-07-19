@@ -3,11 +3,16 @@
 class PhpBench {
 
     static $decreaseTime = null;
-    static $setNr = null;
     static $timers = [];
 
     static $timerCount = 0;
     static $constCount = 0;
+
+    static $compileCache = [];
+    static $socket = null;
+    static $entries = [];
+
+    static $sent = false;
 
     public static function startTimer($timer) {
         static::$timers['t' . $timer] = microtime(true);
@@ -22,10 +27,6 @@ class PhpBench {
 
         $ms = round($timeSpent * 1000 * 1000);
 
-        if (!static::$setNr) {
-            static::$setNr = floor(microtime(true) * 1000) . '';
-        }
-
         if (!static::$decreaseTime) {
             static::$decreaseTime = floor($start / 10000) * 10000;
         }
@@ -34,20 +35,36 @@ class PhpBench {
 
         // echo $ms . 'ms';
 
-        $url = 'http://127.0.0.1:3001/data';
-        $data = [
+        static::$entries[] = [
             'filename' => $filename,
-            'setNr' => static::$setNr,
-            'key' => $timer,
-            'lineNr' => $lineNr,
-            'code' => $code,
-            'ms' => $ms,
-            'start' => floor($start * 1000 * 100),
-            'end' => round($end * 1000 * 100),
+            'key' => $timer . '',
+            'lineNr' => $lineNr . '',
+            'code' => $code . '',
+            'ms' => $ms . '',
+            'start' => floor($start * 1000 * 100) . '',
+            'end' => round($end * 1000 * 100) . '',
         ];
-        static::postWithoutWait($url, $data);
-        return;
 
+    }
+
+    public static function send() {
+
+        if (static::$sent) {
+            return;
+        }
+
+        static::$sent = true;
+
+        $setNr = floor(microtime(true) * 1000);
+
+        $data = [
+            'data' => json_encode([
+                'setNr' => $setNr . '',
+                'entries' => static::$entries,
+            ]),
+        ];
+
+        $url = 'http://127.0.0.1:3001/set/create';
         // Get cURL resource
         $curl = curl_init();
         // Set some options - we are passing in a useragent too here
@@ -61,36 +78,6 @@ class PhpBench {
         $resp = curl_exec($curl);
         // Close request to clear up some resources
         curl_close($curl);
-
-    }
-
-    private static function postWithoutWait($url, $params) {
-        foreach ($params as $key => &$val) {
-            if (is_array($val)) {
-                $val = implode(',', $val);
-            }
-
-            $post_params[] = $key . '=' . urlencode($val);
-        }
-        $post_string = implode('&', $post_params);
-
-        $parts = parse_url($url);
-
-        $fp = fsockopen($parts['host'],
-            isset($parts['port']) ? $parts['port'] : 80,
-            $errno, $errstr, 30);
-
-        $out = "POST " . $parts['path'] . " HTTP/1.1\r\n";
-        $out .= "Host: " . $parts['host'] . "\r\n";
-        $out .= "Content-Type: application/x-www-form-urlencoded\r\n";
-        $out .= "Content-Length: " . strlen($post_string) . "\r\n";
-        $out .= "Connection: Close\r\n\r\n";
-        if (isset($post_string)) {
-            $out .= $post_string;
-        }
-
-        fwrite($fp, $out);
-        fclose($fp);
     }
 
 }
@@ -123,6 +110,10 @@ function phpbench_error($e, $code) {
 
 function phpbench_include($path) {
 
+    if (isset(\PhpBench::$compileCache[$path])) {
+        return \PhpBench::$compileCache[$path];
+    }
+
     $fn = basename($path);
     if ($fn == 'autoload.php') {
         return $path;
@@ -149,6 +140,8 @@ function phpbench_include($path) {
 
     $newPath = substr($path, 0, -4) . '.phpbench.php';
     file_put_contents($newPath, $code);
+
+    \PhpBench::$compileCache[$path] = $newPath;
 
     return $newPath;
 

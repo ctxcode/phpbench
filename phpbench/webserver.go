@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,6 +36,21 @@ type codeLine struct {
 	AverageMsDisplay float64
 }
 
+type setJson struct {
+	SetNr   string      `json:"setNr"`
+	Entries []entryJson `json:"entries"`
+}
+
+type entryJson struct {
+	Filename string `json:"filename"`
+	Key      string `json:"key"`
+	LineNr   string `json:"lineNr"`
+	Code     string `json:"code"`
+	Ms       string `json:"ms"`
+	Start    string `json:"start"`
+	End      string `json:"end"`
+}
+
 var resultSets = map[string]*resultSet{}
 var lastResultSetKey = ""
 
@@ -43,59 +59,22 @@ var lastResultSetKey = ""
 func startWebServer() {
 
 	r := gin.Default()
+	// r := gin.New()
 
 	t, _ := loadTemplate()
 	r.SetHTMLTemplate(t)
 
-	r.POST("/data", func(c *gin.Context) {
+	r.POST("/set/create", func(c *gin.Context) {
 
-		setNr := c.PostForm("setNr")
-		filename := c.PostForm("filename")
+		jsonData := c.PostForm("data")
 
-		key := c.PostForm("key")
-		lineNr := c.PostForm("lineNr")
-		code := c.PostForm("code")
-		ms := c.PostForm("ms")
+		set := setJson{}
 
-		start := c.PostForm("start")
-		end := c.PostForm("end")
-
-		lastResultSetKey = setNr
-
-		msInt, _ := strconv.Atoi(ms)
-		startInt, _ := strconv.Atoi(start)
-		endInt, _ := strconv.Atoi(end)
-
-		if _, ok := resultSets[setNr]; !ok {
-			resultSets[setNr] = &resultSet{
-				CodeLines: map[string]*codeLine{},
-			}
+		if err := json.Unmarshal([]byte(jsonData), &set); err != nil {
+			panic(err)
 		}
 
-		if _, ok := resultSets[setNr].CodeLines[key]; !ok {
-			resultSets[setNr].CodeLines[key] = &codeLine{
-				Filename:         filename,
-				LineNr:           lineNr,
-				Code:             code,
-				Ms:               0,
-				MsDisplay:        0,
-				AverageMsDisplay: 0,
-				Start:            startInt,
-				End:              endInt,
-			}
-		}
-
-		lineRef := resultSets[setNr].CodeLines[key]
-
-		count := len(lineRef.Entries) + 1
-
-		lineRef.Ms += msInt
-		lineRef.MsDisplay = msDisplay(lineRef.Ms)
-		lineRef.AverageMsDisplay = msDisplay(lineRef.Ms / count)
-
-		lineRef.End = endInt
-
-		lineRef.Entries = append(lineRef.Entries, entry{Ms: msInt})
+		parseNewData(&set)
 
 		c.JSON(200, gin.H{
 			"success": "true",
@@ -134,8 +113,58 @@ func startWebServer() {
 
 	})
 
-	r.Run(":3001")
+	// r.Run(":3001")
+	s := &http.Server{
+		Addr:           ":3001",
+		Handler:        r,
+		ReadTimeout:    10 * time.Second,
+		WriteTimeout:   10 * time.Second,
+		MaxHeaderBytes: 1 << 20,
+	}
+	s.ListenAndServe()
 
+}
+
+func parseNewData(s *setJson) {
+
+	lastResultSetKey = s.SetNr
+
+	resultSets[s.SetNr] = &resultSet{
+		CodeLines: map[string]*codeLine{},
+	}
+
+	for _, m := range s.Entries {
+
+		msInt, _ := strconv.Atoi(m.Ms)
+		startInt, _ := strconv.Atoi(m.Start)
+		endInt, _ := strconv.Atoi(m.End)
+
+		if _, ok := resultSets[s.SetNr].CodeLines[m.Key]; !ok {
+			resultSets[s.SetNr].CodeLines[m.Key] = &codeLine{
+				Filename:         m.Filename,
+				LineNr:           m.LineNr,
+				Code:             m.Code,
+				Ms:               0,
+				MsDisplay:        0,
+				AverageMsDisplay: 0,
+				Start:            startInt,
+				End:              endInt,
+			}
+		}
+
+		lineRef := resultSets[s.SetNr].CodeLines[m.Key]
+
+		count := len(lineRef.Entries) + 1
+
+		lineRef.Ms += msInt
+		lineRef.MsDisplay = msDisplay(lineRef.Ms)
+		lineRef.AverageMsDisplay = msDisplay(lineRef.Ms / count)
+
+		lineRef.End = endInt
+
+		lineRef.Entries = append(lineRef.Entries, entry{Ms: msInt})
+
+	}
 }
 
 func msDisplay(nr int) float64 {
