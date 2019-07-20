@@ -13,6 +13,7 @@ class PhpBench {
     static $entries = [];
 
     static $sent = false;
+    static $overheadMs = 0;
 
     public static function startTimer($timer) {
         static::$timers['t' . $timer] = microtime(true);
@@ -132,12 +133,26 @@ function phpbench_include($path) {
     }
 
     if (!file_exists($path)) {
-        throw \Exception('Trying to include file that doesnt exists: ' . $path);
+        return $path;
+        // throw \Exception('Trying to include file that doesnt exists: ' . $path);
     }
+
+    $startOv = floor(microtime(true) * 1000 * 100);
 
     ini_set('display_errors', 1);
     ini_set('display_startup_errors', 1);
     error_reporting(E_ALL);
+
+    $newPath = substr($path, 0, -4) . '.phpbench.php';
+
+    if (file_exists($newPath)) {
+        $mtime_o = filemtime($path);
+        $mtime_b = filemtime($newPath);
+
+        if ($mtime_b > $mtime_o) {
+            return $newPath;
+        }
+    }
 
     $code = phpBenchGetCode($path);
 
@@ -150,19 +165,14 @@ function phpbench_include($path) {
     //     exit;
     // }
 
-    $newPath = substr($path, 0, -4) . '.phpbench.php';
     file_put_contents($newPath, $code);
 
     \PhpBench::$compileCache[$path] = $newPath;
 
-    return $newPath;
+    $endOv = round(microtime(true) * 1000 * 100);
+    \PhpBench::$overheadMs += ($endOv - $startOv);
 
-    // try {
-    // $result = eval($code);
-    // } catch (ParseError | Throwable $e) {
-    //     phpbench_error($e);
-    // }
-    return $result;
+    return $newPath;
 }
 
 function phpBenchGetCode($path) {
@@ -174,7 +184,7 @@ function phpBenchGetCode($path) {
     $addCode = false;
     $lineNr = 1;
     $lastTokenWasNewLine = false;
-    $firstPhpTag = true;
+    $addedPlaceholder = false;
 
     $flushLastCodeLine = function () use (&$newCode, &$lastCodeLine) {
         $newCode .= $lastCodeLine;
@@ -259,10 +269,14 @@ function phpBenchGetCode($path) {
         if (is_array($token)) {
             $name = token_name($token[0]);
 
-            if ($name == 'T_OPEN_TAG' && $firstPhpTag) {
-                // $lastCodeLine .= '<?php';
-                $firstPhpTag = false;
-                // continue;
+            if (in_array($name, ['T_NAMESPACE'], true)) {
+                $skipUntilSemi($i);
+                continue;
+            }
+
+            if (!$addedPlaceholder && !in_array($name, ['T_OPEN_TAG', 'T_NAMESPACE', 'T_WHITESPACE', 'T_COMMENT'], true)) {
+                $addedPlaceholder = true;
+                $lastCodeLine .= '[[PHPBENCH_PLACEHOLDER]] ';
             }
 
             if (in_array($name, ['T_CLASS', 'T_FOR', 'T_FOREACH', 'T_WHILE', 'T_IF', 'T_ELSEIF', 'T_ELSE', 'T_FUNCTION', 'T_THROW', 'T_CATCH'], true)) {
@@ -280,6 +294,7 @@ function phpBenchGetCode($path) {
             }
 
             $lastCodeLine .= $token[1];
+
             continue;
         }
 
@@ -291,6 +306,10 @@ function phpBenchGetCode($path) {
 
         if ($token == ';') {
             if ($addCode) {
+
+                if (\PhpBench::$timerCount == 0) {
+                    \PhpBench::$timerCount = time();
+                }
 
                 \PhpBench::$timerCount++;
                 $newCode .= "\\PhpBench::startTimer(" . (\PhpBench::$timerCount) . ");\n";
@@ -316,8 +335,13 @@ function phpBenchGetCode($path) {
     // Create and replace constants
     $count = ++\PhpBench::$constCount;
 
-    define('PHPBENCH__FILE__' . $count, $path);
-    define('PHPBENCH__DIR__' . $count, dirname($path));
+    $startCode = "";
+    $key = 'PHPBENCH__FILE__' . $count;
+    $startCode .= "if(!defined('$key')) define('$key', '$path');\n";
+    $key = 'PHPBENCH__DIR__' . $count;
+    $startCode .= "if(!defined('$key')) define('$key', '" . dirname($path) . "');\n";
+
+    $newCode = str_replace('[[PHPBENCH_PLACEHOLDER]]', $startCode, $newCode);
 
     $newCode = preg_replace('/([^a-zA-Z0-9_])__FILE__([^a-zA-Z0-9_])/', '$1PHPBENCH__FILE__' . $count . '$2', $newCode);
     $newCode = preg_replace('/([^a-zA-Z0-9_])__DIR__([^a-zA-Z0-9_])/', '$1PHPBENCH__DIR__' . $count . '$2', $newCode);
