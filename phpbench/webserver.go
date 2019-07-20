@@ -17,9 +17,9 @@ type resultSet struct {
 	Name            string
 	Url             string
 	Time            string
+	TotalMs         string
 	CodeLines       map[string]*codeLine
 	CodeLinesSorted []*codeLine
-	TotalMs         int
 }
 
 type entry struct {
@@ -43,6 +43,7 @@ type setJson struct {
 	Name    string      `json:"name"`
 	Url     string      `json:"url"`
 	Time    string      `json:"time"`
+	TotalMs string      `json:"totalMs"`
 	Nr      string      `json:"nr"`
 	Entries []entryJson `json:"entries"`
 }
@@ -104,7 +105,6 @@ func startWebServer() {
 			})
 
 			rset.CodeLinesSorted = lines
-			rset.TotalMs = total
 		}
 
 		resultSetsJson, err := json.Marshal(resultSets)
@@ -139,6 +139,7 @@ func parseNewData(s *setJson) {
 		Name:      s.Name,
 		Url:       s.Url,
 		Time:      s.Time,
+		TotalMs:   s.TotalMs,
 		CodeLines: map[string]*codeLine{},
 	}
 

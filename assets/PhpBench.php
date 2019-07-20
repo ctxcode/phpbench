@@ -55,6 +55,15 @@ class PhpBench {
 
         static::$sent = true;
 
+        $totalMs = 0;
+        $entries = static::$entries;
+        if (count($entries) > 0) {
+            $first = $entries[0];
+            $last = $entries[count($entries) - 1];
+            $tspan = $first['start'] - $last['end'];
+            $tspan /= 100;
+        }
+
         $setNr = floor(microtime(true) * 1000);
 
         $data = [
@@ -62,6 +71,7 @@ class PhpBench {
                 'time' => date('H:i:s'),
                 'url' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
                 'nr' => $setNr . '',
+                'totalMs' => $tspan . 'ms',
                 'entries' => static::$entries,
             ]),
         ];

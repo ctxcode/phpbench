@@ -63,6 +63,10 @@
         color:#999;
         font-size:13px;
     }
+    .sidebar .item .totalms{
+        color:#999;
+        font-size:13px;
+    }
 
     .content{
         position: absolute;
@@ -123,6 +127,7 @@
         <div class="item" v-for="key in setKeys" :class="{ active: currentSetKey == key }" v-on:click="setSetKey(key)">
             <div class="time">[[ resultSets[key].Time ]]</div>
             <div class="url" v-if="resultSets[key].Url != ''">[[ resultSets[key].Url ]]</div>
+            <div class="totalms">[[ resultSets[key].TotalMs ]]</div>
         </div>
     </div>
 
