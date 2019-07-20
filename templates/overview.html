@@ -125,9 +125,8 @@
     <div class="sidebar">
         <div class="header"><span>Tests</span></div>
         <div class="item" v-for="key in setKeys" :class="{ active: currentSetKey == key }" v-on:click="setSetKey(key)">
-            <div class="time">[[ resultSets[key].Time ]]</div>
+            <div class="time">[[ resultSets[key].Time ]] <span class="totalms"> | [[ resultSets[key].TotalMs ]]</span></div>
             <div class="url" v-if="resultSets[key].Url != ''">[[ resultSets[key].Url ]]</div>
-            <div class="totalms">[[ resultSets[key].TotalMs ]]</div>
         </div>
     </div>
 

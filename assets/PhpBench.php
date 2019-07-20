@@ -60,7 +60,7 @@ class PhpBench {
         if (count($entries) > 0) {
             $first = $entries[0];
             $last = $entries[count($entries) - 1];
-            $tspan = $first['start'] - $last['end'];
+            $tspan = $last['end'] - $first['start'];
             $tspan /= 100;
         }
 
