@@ -59,7 +59,9 @@ class PhpBench {
 
         $data = [
             'data' => json_encode([
-                'setNr' => $setNr . '',
+                'time' => date('H:i:s'),
+                'url' => isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '',
+                'nr' => $setNr . '',
                 'entries' => static::$entries,
             ]),
         ];

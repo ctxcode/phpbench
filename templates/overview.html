@@ -57,6 +57,13 @@
         color:#aaa;
     }
 
+    .sidebar .item .time{
+    }
+    .sidebar .item .url{
+        color:#999;
+        font-size:13px;
+    }
+
     .content{
         position: absolute;
         z-index:1;
@@ -113,7 +120,10 @@
 <div id="app">
     <div class="sidebar">
         <div class="header"><span>Tests</span></div>
-        <div class="item" v-for="key in setKeys" :class="{ active: currentSetKey == key }" v-on:click="setSetKey(key)">[[ key ]]</div>
+        <div class="item" v-for="key in setKeys" :class="{ active: currentSetKey == key }" v-on:click="setSetKey(key)">
+            <div class="time">[[ resultSets[key].Time ]]</div>
+            <div class="url" v-if="resultSets[key].Url != ''">[[ resultSets[key].Url ]]</div>
+        </div>
     </div>
 
     <div class="sidebar files">

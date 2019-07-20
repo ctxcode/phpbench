@@ -14,6 +14,9 @@ import (
 )
 
 type resultSet struct {
+	Name            string
+	Url             string
+	Time            string
 	CodeLines       map[string]*codeLine
 	CodeLinesSorted []*codeLine
 	TotalMs         int
@@ -37,7 +40,10 @@ type codeLine struct {
 }
 
 type setJson struct {
-	SetNr   string      `json:"setNr"`
+	Name    string      `json:"name"`
+	Url     string      `json:"url"`
+	Time    string      `json:"time"`
+	Nr      string      `json:"nr"`
 	Entries []entryJson `json:"entries"`
 }
 
@@ -127,9 +133,12 @@ func startWebServer() {
 
 func parseNewData(s *setJson) {
 
-	lastResultSetKey = s.SetNr
+	lastResultSetKey = s.Nr
 
-	resultSets[s.SetNr] = &resultSet{
+	resultSets[s.Nr] = &resultSet{
+		Name:      s.Name,
+		Url:       s.Url,
+		Time:      s.Time,
 		CodeLines: map[string]*codeLine{},
 	}
 
@@ -139,8 +148,8 @@ func parseNewData(s *setJson) {
 		startInt, _ := strconv.Atoi(m.Start)
 		endInt, _ := strconv.Atoi(m.End)
 
-		if _, ok := resultSets[s.SetNr].CodeLines[m.Key]; !ok {
-			resultSets[s.SetNr].CodeLines[m.Key] = &codeLine{
+		if _, ok := resultSets[s.Nr].CodeLines[m.Key]; !ok {
+			resultSets[s.Nr].CodeLines[m.Key] = &codeLine{
 				Filename:         m.Filename,
 				LineNr:           m.LineNr,
 				Code:             m.Code,
@@ -152,7 +161,7 @@ func parseNewData(s *setJson) {
 			}
 		}
 
-		lineRef := resultSets[s.SetNr].CodeLines[m.Key]
+		lineRef := resultSets[s.Nr].CodeLines[m.Key]
 
 		count := len(lineRef.Entries) + 1
 
