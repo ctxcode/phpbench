@@ -47,6 +47,12 @@ func main() {
 	_benchDir = filepath.Dir(_filepath) + "/.phpbench"
 	_originalFilepath = (fullpath[:len(fullpath)-4]) + ".original.php"
 
+	// Check if there already is a original file
+	if _, err := os.Stat(_originalFilepath); err == nil {
+		fmt.Println("Original filepath already exists... something must have gone wrong. You have to fix it manually.")
+		os.Exit(0)
+	}
+
 	os.Mkdir(_benchDir, 0644)
 
 	classCode, _ := Asset("assets/PhpBench.php")
