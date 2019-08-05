@@ -3,7 +3,6 @@
 class PhpBench {
 
     static $decreaseTime = null;
-    static $timers = [];
 
     static $timerCount = 0;
     static $constCount = 0;
@@ -15,16 +14,21 @@ class PhpBench {
     static $sent = false;
     static $overheadMs = 0;
 
-    public static function startTimer($timer) {
-        static::$timers['t' . $timer] = microtime(true);
+    public $id = null;
+    public $startTime = null;
+
+    public static function createTimer($id) {
+        $timer = new static();
+        $timer->id = $id;
+        $timer->startTime = microtime(true);
+        return $timer;
     }
 
-    public static function timeCode($timer, $filename, $lineNr, $code) {
+    public function timeCode($filename, $lineNr, $code) {
         $end = microtime(true);
 
-        $start = static::$timers['t' . $timer];
+        $start = $this->startTime;
         $timeSpent = $end - $start;
-        unset(static::$timers['t' . $timer]);
 
         $ms = round($timeSpent * 1000 * 1000);
 
@@ -38,7 +42,7 @@ class PhpBench {
 
         static::$entries[] = [
             'filename' => $filename,
-            'key' => $timer . '',
+            'key' => $this->id . '',
             'lineNr' => $lineNr . '',
             'code' => $code . '',
             'ms' => $ms . '',
@@ -312,13 +316,13 @@ function phpBenchGetCode($path) {
                 }
 
                 \PhpBench::$timerCount++;
-                $newCode .= "\\PhpBench::startTimer(" . (\PhpBench::$timerCount) . ");\n";
+                $newCode .= "\$_phpb_timer = \\PhpBench::createTimer(" . (\PhpBench::$timerCount) . ");\n";
                 $newCode .= $lastCodeLine . "\n";
 
                 $escCodeLine = str_replace("'", "", $lastCodeLine);
                 $escCodeLine = preg_replace('/\r?\n/', ' ', $escCodeLine);
                 $escCodeLine = trim($escCodeLine);
-                $newCode .= "\\PhpBench::timeCode(" . \PhpBench::$timerCount . ", __FILE__, " . $lineNr . ", '" . $escCodeLine . "');\n";
+                $newCode .= "\$_phpb_timer->timeCode(__FILE__, " . $lineNr . ", '" . $escCodeLine . "');\n";
 
                 $lastCodeLine = "";
                 $addCode = false;
