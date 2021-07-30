@@ -53,10 +53,11 @@ func main() {
 		os.Exit(0)
 	}
 
-	os.Mkdir(_benchDir, 0644)
+	os.Mkdir(_benchDir, 0777)
 
 	classCode, _ := Asset("assets/PhpBench.php")
-	ioutil.WriteFile(_benchDir+"/class.php", []byte(classCode), 0644)
+	ioutil.WriteFile(_benchDir+"/class.php", []byte(classCode), 0777)
+	fmt.Println(_benchDir + "/class.php")
 
 	// fmt.Println("File: " + fullpath)
 
@@ -90,7 +91,9 @@ func main() {
 	newCode := "<?php\n\n" +
 		"include('" + (_benchDir) + "/class.php');\n" +
 		// "include('/mnt/c/www/phpbench/assets/PhpBench.php');\n" +
+		"declare (ticks = 1);\n" +
 		"register_shutdown_function('\\PhpBench::send');\n" +
+		"pcntl_signal(SIGINT, '\\PhpBench::send');\n" +
 		"$_phpbench_result = include(phpbench_include('" + (_originalFilepath) + "'));\n" +
 		// "\\PhpBench::send();\n" +
 		"return $_phpbench_result;\n"
